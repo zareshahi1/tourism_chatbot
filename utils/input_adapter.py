@@ -22,10 +22,10 @@ def load_input(file_path: str = None, raw_text: str = None) -> str:
         return LOADERS["raw"].load(text=raw_text)
 
     if not file_path:
-        raise ValueError("باید یا فایل بدهی یا متن خام")
+        raise ValueError("file path or raw text required")
 
     ext = os.path.splitext(file_path)[1].lower()
     if ext in LOADERS:
         return LOADERS[ext].load(path=file_path)
     else:
-        raise ValueError(f"فرمت {ext} پشتیبانی نمی‌شود")
+        raise ValueError(f"{ext} is not supported format")

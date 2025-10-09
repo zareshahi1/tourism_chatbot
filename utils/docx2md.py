@@ -35,18 +35,3 @@ def docx_to_markdown(docx_path, md_path="", verbose=False):
     except Exception as e:
         print(f"Error converting DOCX to Markdown: {e}")
         raise
-
-#
-# # Example usage
-# md_content = docx_to_markdown(os.path.join(os.getcwd(), '../uploads/7/hospital-doc-test.docx'))
-# print(md_content)
-# headers_to_split_on = [
-#     ("#", "Header 1"),
-#     ("##", "Header 2"),
-#     ("###", "Header 3"),
-# ]
-# markdown_splitter = MarkdownHeaderTextSplitter(
-#     headers_to_split_on=headers_to_split_on, strip_headers=False
-# )
-# md_header_splits = markdown_splitter.split_text(md_content)
-# print([doc.page_content for doc in md_header_splits])

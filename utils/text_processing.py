@@ -9,7 +9,7 @@ class TextProcessor:
 
     @staticmethod
     def clean(text: str) -> str:
-        """نرمال‌سازی متن فارسی"""
+        """Persian Text Cleaning"""
         arabic_to_persian_map = {'ي': 'ی', 'ك': 'ک', 'ة': 'ه', 'ۀ': 'ه', 'ؤ': 'و', 'إ': 'ا', 'أ': 'ا', 'ء': ''}
         for a, p in arabic_to_persian_map.items():
             text = text.replace(a, p)
@@ -19,20 +19,19 @@ class TextProcessor:
 
     @classmethod
     def is_heading(cls, line: str, min_words=1, max_words=5) -> bool:
-        # حذف فاصله‌های اضافی
+        # remove unnecessary spaces
         line = line.strip()
         if not line:
             return False
 
-        # شمارش کلمات
+        # calculate words
         words = line.split()
         n = len(words)
 
-        # شرط تعداد کلمات
         if n < min_words or n > max_words:
             return False
 
-        # شرط: پایان نداشتن با نقطه/علامت سوال/تعجب
+        # check if this is not a paragraph or sentence
         if re.search(r'[.؟!؛:]$', line) or re.search(cls.BULLET_PATTERN, line) or re.search(cls.TABLE_PATTERN, line):
             return False
 
@@ -40,7 +39,7 @@ class TextProcessor:
 
     @classmethod
     def add_headers(cls, text: str) -> str:
-        """تشخیص و اضافه‌کردن هدینگ‌های احتمالی"""
+        """recognition and adding headers to simple texts"""
         result = []
         for line in text.split("\n"):
             stripped = line.strip()
@@ -58,7 +57,7 @@ class TextProcessor:
 
     @classmethod
     def chunk(cls, split_text: list[Document]) -> list[Document]:
-        """تقسیم متن به پاراگراف، بولت و جدول"""
+        """chunk heading split texts (by MarkdownHeaderTextSplitter function) to paragraphs/tables/bullets"""
         result, buffer, curr_type = [], [], None
 
         def flush(label, split):
@@ -91,7 +90,7 @@ class TextProcessor:
 
     @staticmethod
     def attach_metadata(chunks: list[Document], doc_id: str, filename: str):
-        """افزودن متادیتا (doc_id و filename) به چانک‌ها"""
+        """add (doc_id and filename) metadata to chunks"""
         for c in chunks:
             c.metadata["doc_id"] = doc_id
             c.metadata["filename"] = filename
