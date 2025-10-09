@@ -1,0 +1,9 @@
+langchain[openai]
+langchain-openai
+python-dotenv
+langgraph
+langchain-chroma
+docx2txt
+langchain-community
+mammoth
+markdownify
