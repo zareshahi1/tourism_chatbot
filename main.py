@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_community.tools import JinaSearch
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, MessagesState, START, END
-
+import gradio as gr
 from map import geocode_address, GeocodeInput
 
 # --- Load environment variables ---
@@ -112,17 +112,43 @@ app = workflow.compile(checkpointer=memory)
 # --- Run interactive CLI chatbot ---
 config = {"configurable": {"thread_id": "user-123"}}
 
-print("🤖 Tourism Chatbot with Jina Search ready! Type 'exit' to quit.\n")
-while True:
-    try:
-        user_input = input("You: ")
-        if user_input.strip().lower() in {"exit", "quit"}:
-            print("👋 Goodbye!")
-            break
+# while True:
+#     try:
+#         user_input = input("You: ")
+#         if user_input.strip().lower() in {"exit", "quit"}:
+#             print("👋 Goodbye!")
+#             break
+#
+#         response = app.invoke({"messages": [HumanMessage(content=user_input)]}, config)
+#
+#         # Safely extract bot reply
+#         messages = response.get("messages", [])
+#         if messages:
+#             bot_reply = messages[-1].content
+#             print("Bot:")
+#             print(bot_reply)
+#         else:
+#             print("Bot: (no response received)")
+#
+#     except Exception as e:
+#         print(f"⚠️ Error: {e}")
 
-        response = app.invoke({"messages": [HumanMessage(content=user_input)]}, config)
+# Define the chatbot function
+def chat_with_bot(user_message, history):
+    try:
+        response = app.invoke({"messages": [HumanMessage(content=user_message)]}, config)
         bot_reply = response["messages"][-1].content
-        print("Bot:")
-        print(bot_reply)
+        return bot_reply
     except Exception as e:
-        raise e
+        return f"⚠️ Error: {e}"
+
+
+# Create a ChatInterface
+demo = gr.ChatInterface(
+    fn=chat_with_bot,
+    title="🤖 Tourism Chatbot with Jina Search",
+    description="Ask me about destinations, attractions, or travel tips!"
+)
+
+if __name__ == "__main__":
+    demo.launch()
