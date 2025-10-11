@@ -22,6 +22,24 @@ if not os.environ.get("OPENAI_API_KEY"):
 # --- Initialize model and tool ---
 model = ChatOpenAI(model="gpt-4o", temperature=0.7)
 nano_model = ChatOpenAI(model="gpt-5-nano", temperature=0.5)
+# model = ChatOpenAI(
+#     api_key=os.getenv("OPENROUTER_API_KEY"),
+#     base_url="https://openrouter.ai/api/v1",
+#     model="meta-llama/llama-3.3-8b-instruct:free",
+#     default_headers={
+#         "HTTP-Referer": "http://localhost",
+#         "X-Title": "tourism_chatbot"
+#     }
+# )
+# nano_model = ChatOpenAI(
+#     api_key=os.getenv("OPENROUTER_API_KEY"),
+#     base_url="https://openrouter.ai/api/v1",
+#     model="google/gemma-3n-e4b-it:free",
+#     default_headers={
+#         "HTTP-Referer": "http://localhost",
+#         "X-Title": "tourism_chatbot"
+#     }
+# )
 jina_tool = JinaSearch()
 
 # Bind tools to the model (so the LLM can call them when needed)
@@ -33,8 +51,7 @@ workflow = StateGraph(state_schema=MessagesState)
 
 def call_model(state: MessagesState):
     system_prompt = (
-        "You are a tourism assistant. Help the user plan their journey, "
-        "and when needed, use Jina Search to find up-to-date travel info."
+        "You are a tourism assistant. Help the user plan their journey, output language is use input language"
     )
     messages = [SystemMessage(content=system_prompt)] + state["messages"]
 
