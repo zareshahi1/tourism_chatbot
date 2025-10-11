@@ -1,14 +1,11 @@
 # import pdfplumber
-import fitz
+from pypdf import PdfReader
 from .base import BaseLoader
 
 class PdfLoader(BaseLoader):
     def load(self, path: str = None, text: str = None) -> str:
         result = ""
-        # with pdfplumber.open(path) as pdf:
-        #     for page in pdf.pages:
-        #         result += page.extract_text() + "\n"
-        with fitz.open(path) as doc:
-            for page in doc:
-                result += page.get_text()
+        reader = PdfReader("example.pdf")
+        for page in reader.pages:
+            result += page.extract_text()
         return result

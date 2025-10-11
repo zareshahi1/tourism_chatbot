@@ -10,6 +10,8 @@ from langchain_community.tools import JinaSearch
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, MessagesState, START, END
 
+from map import geocode_address, GeocodeInput
+
 # --- Load environment variables ---
 load_dotenv()
 if not os.environ.get("JINA_API_KEY"):
@@ -22,12 +24,11 @@ model = ChatOpenAI(model="gpt-4o", temperature=0.7)
 nano_model = ChatOpenAI(model="gpt-5-nano", temperature=0.5)
 jina_tool = JinaSearch()
 
-# Bind the tool to the model (so the LLM can call it when needed)
-model_with_tools = model.bind_tools([jina_tool])
+# Bind tools to the model (so the LLM can call them when needed)
+model_with_tools = model.bind_tools([jina_tool, geocode_address])
 
 # --- Define workflow graph ---
 workflow = StateGraph(state_schema=MessagesState)
-
 
 
 def call_model(state: MessagesState):
@@ -38,34 +39,45 @@ def call_model(state: MessagesState):
     messages = [SystemMessage(content=system_prompt)] + state["messages"]
 
     # First call
-    response = model_with_tools.invoke(messages)
+    try:
+        response = model_with_tools.invoke(messages)
+    except:
+        # just use last two history
+        messages = [SystemMessage(content=system_prompt)] + state["messages"][-2:]
+        response = model_with_tools.invoke(messages)
 
     # If the model requested a tool
     if hasattr(response, "tool_calls") and response.tool_calls:
         tool_outputs = []
         for tool_call in response.tool_calls:
-            if tool_call["name"] == "jina_search":
-                query = tool_call["args"]["query"]
-                result = jina_tool.invoke(query)
-                try:
+            try:
+                if tool_call["name"] == "jina_search":
+                    query = tool_call["args"]["query"]
+                    result = jina_tool.invoke(query)
                     result_dict = json.loads(result)
                     summaries = []
                     print("Search Results number:", len(result_dict))
                     for r in result_dict:
                         print("title: ", r['title'])
                         print("link: ", r['link'])
-                        print("**"*20)
+                        print("**" * 20)
                         summary_prompt = f"Summarize this search result in under 5 bullet points:\n\n{r['content']}"
                         summary = nano_model.invoke([HumanMessage(content=summary_prompt)])
                         summaries.append(summary.content)
                     tool_outputs.append(
                         ToolMessage(content="\n".join(summaries), tool_call_id=tool_call["id"])
                     )
-                except:
+                elif tool_call["name"] == "geocode_address":
+                    address = tool_call["args"]["input"]["address"]
+                    result = geocode_address(GeocodeInput(address=address))
                     tool_outputs.append(
-                        ToolMessage(content="", tool_call_id=tool_call["id"])
+                        ToolMessage(content=result.url, tool_call_id=tool_call["id"])
                     )
-                    continue
+            except:
+                tool_outputs.append(
+                    ToolMessage(content="", tool_call_id=tool_call["id"])
+                )
+                continue
         # Call the model again with tool results
         response = model_with_tools.invoke(messages + [response] + tool_outputs)
 

@@ -1,9 +1,14 @@
-import os, uuid
+import os
 from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import MarkdownHeaderTextSplitter
+from langchain_community.vectorstores import FAISS
+
 from utils.input_adapter import load_input
 from utils.text_processing import TextProcessor
-from langchain_text_splitters import MarkdownHeaderTextSplitter
-from langchain.vectorstores.chroma import Chroma
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 
 class DocumentPipeline:
@@ -28,30 +33,95 @@ class DocumentPipeline:
         return chunks, self.doc_id, self.filename
 
 
-class ChromaManager:
-    def __init__(self, chroma_path: str = "db"):
-        self.embedding = OpenAIEmbeddings(model="text-embedding-3-small")
-        self.db = Chroma(persist_directory=chroma_path, embedding_function=self.embedding)
+
+class FAISSManager:
+    def __init__(self, index_path="faiss_index"):
+        self.index_path = "./db/" + index_path
+        self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
     def add_document(self, file_path: str = None, raw_text: str = None):
         pipeline = DocumentPipeline(file_path, raw_text)
         chunks, doc_id, filename = pipeline.run()
 
-        # Add or Update the documents.
-        existing_items = self.db.get(include=[])  # IDs are always included by default
-        existing_ids = set(existing_items["ids"])
-        print(f"Number of existing documents in DB: {len(existing_ids)}")
+        if os.path.exists(self.index_path):
+            vs = FAISS.load_local(self.index_path, self.embeddings, allow_dangerous_deserialization=True)
 
-        # Only add documents that don't exist in the DB.
-        new_chunks = []
-        for chunk in chunks_with_ids:
-            if chunk.metadata["id"] not in existing_ids:
-                new_chunks.append(chunk)
+            for doc in vs.docstore._dict.values():
+                if doc.metadata.get("filename") == filename:
+                    print("%s file indexed before", filename)
+                    return doc.metadata.get("doc_id"), filename
 
-        if len(new_chunks):
-            print(f"👉 Adding new documents: {len(new_chunks)}")
-            new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
-            db.add_documents(new_chunks, ids=new_chunk_ids)
-            db.persist()
+            vs.add_documents(chunks)
         else:
-            print("✅ No new documents to add")
+            vs = FAISS.from_documents(chunks, self.embeddings)
+
+        vs.save_local(self.index_path)
+        return doc_id, filename
+
+    def list_documents(self):
+        if not os.path.exists(self.index_path):
+            return []
+        vs = FAISS.load_local(self.index_path, self.embeddings, allow_dangerous_deserialization=True)
+        docs_info = [
+            {"doc_id": d.metadata.get("doc_id"), "filename": d.metadata.get("filename")}
+            for d in vs.docstore._dict.values()
+        ]
+        return list({d["doc_id"]: d for d in docs_info if d["doc_id"]}.values())
+
+    def remove_document(self, file_path: str):
+        if not os.path.exists(self.index_path):
+            return None
+
+        filename = os.path.basename(file_path)
+
+        vs = FAISS.load_local(
+            self.index_path,
+            self.embeddings,
+            allow_dangerous_deserialization=True
+        )
+
+        keys_to_delete = [
+            k for k, v in vs.docstore._dict.items()
+            if v.metadata.get("filename") == filename
+        ]
+
+        if not keys_to_delete:
+            return False
+
+        remaining_docs = []
+        for k, v in vs.docstore._dict.items():
+            if k not in keys_to_delete:
+                remaining_docs.append(v)
+
+        if remaining_docs:
+            new_vs = FAISS.from_documents(
+                remaining_docs,
+                self.embeddings
+            )
+            vs = new_vs
+        else:
+            vs = FAISS(
+                embedding_function=self.embeddings,
+                index=None,
+                docstore=vs.docstore,
+                index_to_docstore_id={}
+            )
+
+        vs.save_local(self.index_path)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        return True
+
+    def search(self, query: str, k=3, doc_id=None, filename=None):
+        if not os.path.exists(self.index_path):
+            return []
+        vs = FAISS.load_local(self.index_path, self.embeddings, allow_dangerous_deserialization=True)
+
+        filter_dict = {}
+        if doc_id: filter_dict["doc_id"] = doc_id
+        if filename: filter_dict["filename"] = filename
+
+        return vs.similarity_search(query, k=k, filter=filter_dict if filter_dict else None)
+

@@ -1,9 +1,11 @@
+langchain-text-splitters
 langchain[openai]
 langchain-openai
 python-dotenv
 langgraph
-langchain-chroma
+langchain-qdrant
 docx2txt
 langchain-community
 mammoth
 markdownify
+pypdf
