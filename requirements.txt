@@ -9,3 +9,4 @@ langchain-community
 mammoth
 markdownify
 pypdf
+faiss-cpu

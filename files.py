@@ -1,4 +1,7 @@
 import os
+import sys
+import uuid
+
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -8,7 +11,6 @@ from utils.text_processing import TextProcessor
 from dotenv import load_dotenv
 
 load_dotenv()
-
 
 
 class DocumentPipeline:
@@ -33,7 +35,6 @@ class DocumentPipeline:
         return chunks, self.doc_id, self.filename
 
 
-
 class FAISSManager:
     def __init__(self, index_path="faiss_index"):
         self.index_path = "./db/" + index_path
@@ -48,7 +49,7 @@ class FAISSManager:
 
             for doc in vs.docstore._dict.values():
                 if doc.metadata.get("filename") == filename:
-                    print("%s file indexed before", filename)
+                    print(f"⚠️ file {filename} indexed before")
                     return doc.metadata.get("doc_id"), filename
 
             vs.add_documents(chunks)
@@ -56,6 +57,9 @@ class FAISSManager:
             vs = FAISS.from_documents(chunks, self.embeddings)
 
         vs.save_local(self.index_path)
+        print(f"✅ Document added successfully!")
+        print(f"   Filename: {filename}")
+        print(f"   Doc ID:   {doc_id}")
         return doc_id, filename
 
     def list_documents(self):
@@ -125,3 +129,16 @@ class FAISSManager:
 
         return vs.similarity_search(query, k=k, filter=filter_dict if filter_dict else None)
 
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python files.py <file_path>")
+        sys.exit(1)
+
+    file_path = sys.argv[1]
+
+    manager = FAISSManager()
+    manager.add_document(file_path=file_path)
+
+if __name__ == "__main__":
+    main()
