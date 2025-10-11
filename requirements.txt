@@ -10,3 +10,5 @@ mammoth
 markdownify
 pypdf
 faiss-cpu
+pytest
+gradio
